@@ -7,4 +7,4 @@ sdkconfig.defaults
 
 # Incomplete notes
 docs/*
-!docs/schematic
+!docs/schematic.pdf
