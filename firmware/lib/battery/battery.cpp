@@ -3,6 +3,7 @@
 #include "filters.h"
 
 #include <Arduino.h>
+#include <esp_adc_cal.h>
 
 /** Static member definitions */
 uint8_t Battery::m_percent = 100;
@@ -10,11 +11,15 @@ float   Battery::m_voltage = 4.2f;
 
 /** Internal state */
 static LowPassFilter voltFilter;
+static esp_adc_cal_characteristics_t adcChars;
 
 /** @brief Configure ADC resolution and attenuation, take initial reading. */
 void Battery::init() {
     analogReadResolution(12);
     analogSetPinAttenuation(PIN_BATTERY_ADC, ADC_11db);
+
+    /** Use per-chip eFuse calibration data for accurate voltage readings */
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_12, ADC_WIDTH_BIT_12, 1100, &adcChars);
 
     /** Smoothing to avoid jitter */
     voltFilter.configure(0.1f);
@@ -33,11 +38,14 @@ void Battery::update() {
     }
 
     float adcAvg = (float)sum / 8.0f;
-    float voltage = (adcAvg / 4095.0f) * 3.3f * BATTERY_DIVIDER_RATIO;
+
+    /** Use calibrated conversion: returns millivolts at the ADC pin */
+    uint32_t adcMv = esp_adc_cal_raw_to_voltage((uint32_t)adcAvg, &adcChars);
+    float voltage = (adcMv / 1000.0f) * BATTERY_DIVIDER_RATIO;
     m_voltage = voltFilter.apply(voltage);
 
-    Serial.printf("[Battery] ADC avg: %.1f, raw voltage: %.3fV, filtered: %.3fV\n",
-                  adcAvg, voltage, m_voltage);
+    Serial.printf("[Battery] ADC avg: %.1f, pin mV: %lu, battery: %.3fV\n",
+                  adcAvg, adcMv, m_voltage);
     
     float percent = (m_voltage - BATTERY_EMPTY_VOLTAGE)
         / (BATTERY_FULL_VOLTAGE - BATTERY_EMPTY_VOLTAGE)
