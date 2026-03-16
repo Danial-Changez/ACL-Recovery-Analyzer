@@ -7,7 +7,6 @@ sdkconfig.defaults
 
 # Incomplete notes
 docs/*
-!docs/schematic.pdf
 
-# App stub
-android/*
+# Schematics
+!docs/prototype_schematic.pdf
