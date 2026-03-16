@@ -59,7 +59,7 @@ A wearable knee rehabilitation monitoring system for ACL recovery. The device us
 
 ```
 MPU-6050 (Thigh) ──┐                                ┌──────────────────────┐
-                    ├── I2C ──→ ESP32-S3 ── BLE ──→ │  Android App         │
+                   ├─── I2C ──→ ESP32-S3 ── BLE ──→ │  Android App         │
 MPU-6050 (Shank) ──┘           │                    │  ├─ Live tab         │
                                ├─ Madgwick filter   │  ├─ History tab      │
                                ├─ Rep counting      │  ├─ Device tab       │
