@@ -15,9 +15,12 @@ static uint32_t lastBatteryMs = 0;
 
 static bool     lastButtonState = HIGH;
 static uint32_t lastButtonMs    = 0;
+static uint32_t lastActivityMs  = 0;
+static bool     imuSleeping     = false;
 #define DEBOUNCE_MS  200
 
 void setup() {
+    setCpuFrequencyMhz(80);
     Serial.begin(115200);
     delay(1000);
 
@@ -48,7 +51,16 @@ void loop() {
     bool buttonState = digitalRead(PIN_BUTTON);
     if (buttonState == LOW && lastButtonState == HIGH &&
         (now - lastButtonMs) > DEBOUNCE_MS) {
-        lastButtonMs = now;
+        lastButtonMs   = now;
+        lastActivityMs = now;
+
+        if (imuSleeping) {
+            ImuDriver::wake(ImuId::THIGH);
+            ImuDriver::wake(ImuId::SHANK);
+            imuSleeping = false;
+            Serial.println("[Main] IMUs woken (button press)");
+        }
+
         ExerciseTracker::nextExercise();
         Haptic::buzzDouble();
         Serial.printf("[Main] Exercise: %s\n", ExerciseTracker::getProfile().m_pName);
@@ -59,17 +71,27 @@ void loop() {
     if (now - lastSensorMs >= SENSOR_INTERVAL_MS) {
         lastSensorMs = now;
 
-        ImuDriver::update();
+        if (!imuSleeping) {
+            ImuDriver::update();
 
-        float       kneeAngle   = ImuDriver::computeKneeAngle();
-        EulerAngles thighAngles = ImuDriver::readEuler(ImuId::THIGH);
+            float       kneeAngle   = ImuDriver::computeKneeAngle();
+            EulerAngles thighAngles = ImuDriver::readEuler(ImuId::THIGH);
 
-        ExerciseTracker::update(kneeAngle, thighAngles.m_roll, thighAngles.m_pitch, now);
+            ExerciseTracker::update(kneeAngle, thighAngles.m_roll, thighAngles.m_pitch, now);
+            ExerciseMetrics ex = ExerciseTracker::getMetrics();
 
-        ExerciseMetrics ex = ExerciseTracker::getMetrics();
+            if (ex.m_exerciseActive)
+                lastActivityMs = now;
+            if (ex.m_repJustCompleted)
+                Haptic::buzzShort();
 
-        if (ex.m_repJustCompleted) {
-            Haptic::buzzShort();
+            /** Sleep IMUs after inactivity timeout */
+            if ((now - lastActivityMs) > IMU_IDLE_TIMEOUT_MS) {
+                ImuDriver::enterSleep(ImuId::THIGH);
+                ImuDriver::enterSleep(ImuId::SHANK);
+                imuSleeping = true;
+                Serial.println("[Main] IMUs sleeping (idle timeout)");
+            }
         }
     }
 

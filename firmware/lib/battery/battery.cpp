@@ -13,6 +13,23 @@ float   Battery::m_voltage = 4.2f;
 static LowPassFilter voltFilter;
 static esp_adc_cal_characteristics_t adcChars;
 
+/** LiPo discharge curve for 2000mAh 103450 cell at 0.2C, 25°C. */
+static const float dischargeLUT[][2] = {
+    /* { voltage,  remaining % } */
+    {   4.20f,     100.0f  },
+    {   4.05f,      90.0f  },
+    {   3.95f,      80.0f  },
+    {   3.88f,      70.0f  },
+    {   3.82f,      60.0f  },
+    {   3.78f,      50.0f  },
+    {   3.73f,      40.0f  },
+    {   3.68f,      30.0f  },
+    {   3.58f,      20.0f  },
+    {   3.45f,      10.0f  },
+    {   3.30f,       4.0f  },
+};
+static const int LUT_SIZE = sizeof(dischargeLUT) / sizeof(dischargeLUT[0]);
+
 /** @brief Configure ADC resolution and attenuation, take initial reading. */
 void Battery::init() {
     analogReadResolution(12);
@@ -47,14 +64,24 @@ void Battery::update() {
     Serial.printf("[Battery] ADC avg: %.1f, pin mV: %lu, battery: %.3fV\n",
                   adcAvg, adcMv, m_voltage);
     
-    float percent = (m_voltage - BATTERY_EMPTY_VOLTAGE)
-        / (BATTERY_FULL_VOLTAGE - BATTERY_EMPTY_VOLTAGE)
-        * 100.0f;
-
-    if (percent < 0.0f)
-        percent = 0.0f;
-    if (percent > 100.0f)
+    /** LUT interpolation — walk table to find the two bracketing entries */
+    float percent;
+    if (m_voltage >= dischargeLUT[0][0]) {
         percent = 100.0f;
+    } else if (m_voltage <= dischargeLUT[LUT_SIZE - 1][0]) {
+        percent = 0.0f;
+    } else {
+        for (int i = 0; i < LUT_SIZE - 1; i++) {
+            if (m_voltage >= dischargeLUT[i + 1][0]) {
+                float vHigh = dischargeLUT[i][0];
+                float vLow  = dischargeLUT[i + 1][0];
+                float pHigh = dischargeLUT[i][1];
+                float pLow  = dischargeLUT[i + 1][1];
+                percent = pLow + (pHigh - pLow) * (m_voltage - vLow) / (vHigh - vLow);
+                break;
+            }
+        }
+    }
     m_percent = (uint8_t)percent;
 }
 

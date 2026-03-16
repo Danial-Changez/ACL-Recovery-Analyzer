@@ -110,5 +110,6 @@
 
 #define CALIB_SETTLE_MS       3000
 #define GYRO_STABLE_THRESHOLD 0.05f
+#define IMU_IDLE_TIMEOUT_MS   30000
 
 #endif /* CONFIG_H */

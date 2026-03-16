@@ -71,6 +71,8 @@ void BleService::init() {
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
     pAdvertising->setName("ACL-Rehab");
     pAdvertising->addServiceUUID(NimBLEUUID(SERVICE_UUID));
+    pAdvertising->setMinInterval(800);
+    pAdvertising->setMaxInterval(1600);
     NimBLEDevice::startAdvertising();
 
     Serial.println("[NimBLE] GATT server started, advertising as ACL-Rehab");
