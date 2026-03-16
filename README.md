@@ -132,10 +132,10 @@ Five rehabilitation exercises are currently supported, each with configurable an
 Reps are counted by a state machine that tracks angle progression through phases. The order goes
 
 ```plain
-    Start → Peak → Return
+Start --> Peak --> Return
 ```
 
-The exercise type is cycled via the onboard button (GPIO 2) with 200 ms debounce.
+The exercise type is cycled via the onboard button with 200 ms debounce.
 
 ### Power Management
 
